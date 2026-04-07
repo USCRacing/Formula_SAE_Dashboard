@@ -54,6 +54,15 @@ export type InjectionLogEntry = {
   value: string;
   was_update: boolean;
   injected_at: string;
+  form_name?: string | null;
+};
+
+export type PendingInjectionEntry = {
+  form_name: string;
+  field_id: string;
+  value: string;
+  entry_type: string;
+  unit: string;
 };
 
 export type LdxFileStats = {
