@@ -98,28 +98,11 @@ export function Sidebar() {
         </ScrollArea>
         </nav>
 
-        {/* Keyboard shortcut hints */}
-        <div className="border-t border-sidebar-border px-4 py-3 space-y-1.5">
-          <div className="text-[11px] text-sidebar-muted">
-            <kbd className="rounded border border-sidebar-border bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">
-              Ctrl K
-            </kbd>{" "}
-            Quick nav
-          </div>
-          <div className="text-[11px] text-sidebar-muted">
-            <kbd className="rounded border border-sidebar-border bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">
-              G
-            </kbd>{" "}
-            <kbd className="rounded border border-sidebar-border bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">
-              F
-            </kbd>{" "}
-            <kbd className="rounded border border-sidebar-border bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">
-              T
-            </kbd>{" "}
-            <kbd className="rounded border border-sidebar-border bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">
-              A
-            </kbd>{" "}
-            Go to...
+        {/* Keyboard shortcut hint */}
+        <div className="border-t border-sidebar-border px-4 py-2.5">
+          <div className="flex items-center gap-1.5 text-[11px] text-sidebar-muted">
+            <kbd className="rounded border border-sidebar-border bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">Ctrl K</kbd>
+            <span>Command palette</span>
           </div>
         </div>
       </div>
