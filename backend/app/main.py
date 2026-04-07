@@ -34,7 +34,7 @@ from .ldx_watcher import (
     set_watch_directory,
 )
 from .models import (
-    AuditLog, DashboardPreference, FormValue, InjectionLog, LdxFile,
+    AuditLog, DashboardPreference, FormValue, InjectionLog, LdxFieldMeta, LdxFile,
     Role, SubteamRole, TelemetrySensor, User,
 )
 from .serial_telemetry import SerialFormat
@@ -191,6 +191,7 @@ class LdxFileInfo(BaseModel):
     name: str
     size: int
     modified_at: datetime
+    short_comment: Optional[str] = None
 
 
 def _validate_ldx_file_name(file_name: str) -> None:
@@ -511,9 +512,10 @@ def submit_form(role: str, payload: FormSubmit, current_user: User = Depends(get
             new_value_str = "" if new_value is None else str(new_value)
             old_value = current.value if current else None
             if current:
-                current.value = new_value_str
-                current.updated_at = now
-                current.updated_by = current_user.id
+                if current.value != new_value_str:
+                    current.value = new_value_str
+                    current.updated_at = now
+                    current.updated_by = current_user.id
             else:
                 session.add(
                     FormValue(
@@ -619,6 +621,12 @@ def list_ldx_files(_: User = Depends(require_admin)) -> List[LdxFileInfo]:
     watch_dir = get_watch_directory()
     if not watch_dir or not os.path.isdir(watch_dir):
         return []
+
+    # Load short_comments from DB
+    with Session(engine) as session:
+        records = session.exec(select(LdxFile)).all()
+        comment_map = {Path(r.path).name: r.short_comment for r in records}
+
     files: List[LdxFileInfo] = []
     for path in Path(watch_dir).glob("*.ldx"):
         try:
@@ -630,6 +638,7 @@ def list_ldx_files(_: User = Depends(require_admin)) -> List[LdxFileInfo]:
                 name=path.name,
                 size=stat.st_size,
                 modified_at=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                short_comment=comment_map.get(path.name),
             )
         )
     files.sort(key=lambda item: item.modified_at, reverse=True)
@@ -757,6 +766,109 @@ def ldx_stats(_: User = Depends(require_admin)) -> List[LdxFileStatsView]:
             )
             for name, s in sorted(stats.items())
         ]
+
+
+class LdxFieldMetaView(BaseModel):
+    field_id: str
+    value_min: Optional[str] = None
+    value_max: Optional[str] = None
+    comment: Optional[str] = None
+
+
+@app.get(
+    "/admin/ldx-files/{file_name}/metadata",
+    response_model=List[LdxFieldMetaView],
+)
+def ldx_file_metadata(
+    file_name: str, _: User = Depends(require_admin)
+) -> List[LdxFieldMetaView]:
+    """Return Value.Min, Value.Max, Comment metadata extracted from LDX MathConstants."""
+    ldx_path = str(_resolve_ldx_file_path(file_name))
+    with Session(engine) as session:
+        rows = session.exec(
+            select(LdxFieldMeta).where(LdxFieldMeta.ldx_path == ldx_path)
+        ).all()
+        return [
+            LdxFieldMetaView(
+                field_id=row.field_id,
+                value_min=row.value_min,
+                value_max=row.value_max,
+                comment=row.comment,
+            )
+            for row in rows
+        ]
+
+
+class LdxDiffEntry(BaseModel):
+    field_id: str
+    current_value: Optional[str] = None
+    new_value: str
+    changed: bool
+
+
+class LdxDiffResponse(BaseModel):
+    file_name: str
+    short_comment: Optional[str] = None
+    entries: List[LdxDiffEntry]
+
+
+@app.get(
+    "/admin/ldx-files/{file_name}/diff",
+    response_model=LdxDiffResponse,
+)
+def ldx_file_diff(
+    file_name: str, _: User = Depends(require_admin)
+) -> LdxDiffResponse:
+    """Preview what a reinjection would change — shows current vs stored value for each field."""
+    from xml.etree import ElementTree as ET
+    from .ldx_watcher import _ensure_ldx_targets, _string_entries_by_id, _math_entries_by_name, _latest_logged_entries_for_file, _extract_short_comment
+
+    path = _resolve_ldx_file_path(file_name)
+    tree = ET.parse(path)
+    root = tree.getroot()
+    details, math_constants = _ensure_ldx_targets(root)
+
+    with Session(engine) as session:
+        entries = _latest_logged_entries_for_file(session, path, details, math_constants)
+
+    if not entries:
+        raise HTTPException(status_code=404, detail="No stored injection history found for this file")
+
+    string_map = _string_entries_by_id(details)
+    math_map = _math_entries_by_name(math_constants)
+
+    diff: List[LdxDiffEntry] = []
+    for entry in entries:
+        if entry.entry_type == "math":
+            el = math_map.get(entry.field_id)
+            current = el.get("Value", "") if el is not None else None
+        else:
+            el = string_map.get(entry.field_id)
+            current = el.get("Value", "") if el is not None else None
+        changed = current != entry.value
+        diff.append(LdxDiffEntry(
+            field_id=entry.field_id,
+            current_value=current,
+            new_value=entry.value,
+            changed=changed,
+        ))
+
+    # Sort: changed entries first, then alphabetical
+    diff.sort(key=lambda d: (not d.changed, d.field_id))
+
+    short_comment = _extract_short_comment(details)
+
+    # Also include short_comment from LdxFile record if available
+    with Session(engine) as session:
+        record = session.exec(select(LdxFile).where(LdxFile.path == str(path))).first()
+        if record and record.short_comment and not short_comment:
+            short_comment = record.short_comment
+
+    return LdxDiffResponse(
+        file_name=file_name,
+        short_comment=short_comment,
+        entries=diff,
+    )
 
 
 @app.post("/admin/export-db")

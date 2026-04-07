@@ -91,6 +91,7 @@ class LdxFile(SQLModel, table=True):
     path: str = Field(index=True, unique=True)
     mtime: float
     processed_at: datetime = Field(default_factory=_utcnow)
+    short_comment: Optional[str] = None
 
 
 class InjectionLog(SQLModel, table=True):
@@ -102,3 +103,14 @@ class InjectionLog(SQLModel, table=True):
     unit: Optional[str] = None
     was_update: bool = False
     injected_at: datetime = Field(default_factory=_utcnow)
+
+
+class LdxFieldMeta(SQLModel, table=True):
+    """Metadata extracted from LDX MathConstant attributes (Value.Min, Value.Max, Comment)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ldx_path: str = Field(index=True)
+    field_id: str = Field(index=True)
+    value_min: Optional[str] = None
+    value_max: Optional[str] = None
+    comment: Optional[str] = None
+    extracted_at: datetime = Field(default_factory=_utcnow)

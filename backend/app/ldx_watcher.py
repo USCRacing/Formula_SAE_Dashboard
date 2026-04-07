@@ -8,11 +8,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 from xml.etree import ElementTree
 
+from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
 from .database import engine
 from .forms import FormField, load_forms
-from .models import AuditLog, FormValue, InjectionLog, LdxFile, Setting
+from .models import AuditLog, FormValue, InjectionLog, LdxFile, LdxFieldMeta, Setting
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class ApplySummary:
     created: int = 0
     updated: int = 0
     unchanged: int = 0
+    short_comment: Optional[str] = None
 
     @property
     def changed_count(self) -> int:
@@ -164,6 +166,7 @@ class LdxWatcher:
                         path=abs_path,
                         mtime=file_mtime,
                         processed_at=detection_time,
+                        short_comment=summary.short_comment,
                     )
                 )
                 session.commit()
@@ -219,19 +222,15 @@ def _to_human(s: str) -> str:
     return s.replace("_", " ").strip().title()
 
 
-def _build_form_name_to_role() -> Dict[str, str]:
-    mapping: Dict[str, str] = {}
+def _build_lookup_tables() -> Tuple[Dict[str, str], Dict[str, FormField]]:
+    """Build form_name→role and (form.field)→FormField lookups in a single load_forms() call."""
+    form_name_to_role: Dict[str, str] = {}
+    field_lookup: Dict[str, FormField] = {}
     for form in load_forms():
-        mapping[form.form_name] = form.role
-    return mapping
-
-
-def _build_field_lookup() -> Dict[str, FormField]:
-    lookup: Dict[str, FormField] = {}
-    for form in load_forms():
+        form_name_to_role[form.form_name] = form.role
         for field in form.fields:
-            lookup[f"{form.form_name}.{field.name}"] = field
-    return lookup
+            field_lookup[f"{form.form_name}.{field.name}"] = field
+    return form_name_to_role, field_lookup
 
 
 def _build_logged_entry_metadata_lookup() -> Dict[str, Tuple[str, str]]:
@@ -295,6 +294,51 @@ def _math_entries_by_name(
     }
 
 
+def _extract_field_metadata(
+    math_constants: ElementTree.Element,
+    path: Path,
+    session: Session,
+    extracted_at: datetime,
+) -> None:
+    """Extract Value.Min, Value.Max, Comment from MathConstants and store as LdxFieldMeta."""
+    abs_path = str(path.resolve())
+    # Clear previous metadata for this file
+    existing = session.exec(
+        select(LdxFieldMeta).where(LdxFieldMeta.ldx_path == abs_path)
+    ).all()
+    for row in existing:
+        session.delete(row)
+
+    for child in math_constants.findall("MathConstant"):
+        name = child.get("Name")
+        if not name:
+            continue
+        value_min = child.get("Value.Min")
+        value_max = child.get("Value.Max")
+        comment = child.get("Comment")
+        if value_min is not None or value_max is not None or comment is not None:
+            session.add(
+                LdxFieldMeta(
+                    ldx_path=abs_path,
+                    field_id=name,
+                    value_min=value_min,
+                    value_max=value_max,
+                    comment=comment,
+                    extracted_at=extracted_at,
+                )
+            )
+
+
+def _extract_short_comment(
+    details: ElementTree.Element,
+) -> Optional[str]:
+    """Extract Short Comment from LDX Details section."""
+    for child in details.findall("String"):
+        if child.get("Id") == "Short Comment":
+            return child.get("Value")
+    return None
+
+
 def _append_injection_log(
     session: Session,
     path: Path,
@@ -323,6 +367,12 @@ def _write_ldx_tree(tree: ElementTree.ElementTree, root: ElementTree.Element, pa
     try:
         os.close(fd)
         tree.write(tmp_path, encoding="utf-8", xml_declaration=True)
+        # Preserve original file permissions; default to 0o644 if file is new
+        try:
+            st = os.stat(str(path))
+            os.chmod(tmp_path, st.st_mode)
+        except OSError:
+            os.chmod(tmp_path, 0o644)
         os.replace(tmp_path, str(path))
     except Exception:
         try:
@@ -406,7 +456,8 @@ def _apply_injection_entries_to_tree(
     if modified:
         _write_ldx_tree(tree, root, path)
 
-    return ApplySummary(created=created, updated=updated, unchanged=unchanged)
+    short_comment = _extract_short_comment(details)
+    return ApplySummary(created=created, updated=updated, unchanged=unchanged, short_comment=short_comment)
 
 
 # Field types that go into Maths/MathConstants as MathConstant elements.
@@ -422,6 +473,7 @@ def inject_values_into_ldx(
         "Injecting values into %s: found %d form values", path.name, len(all_values)
     )
 
+    # Deduplicate to latest value per (form_name, field_name) in Python
     latest_values: Dict[str, FormValue] = {}
     for value in all_values:
         key = f"{value.form_name}.{value.field_name}"
@@ -435,15 +487,54 @@ def inject_values_into_ldx(
         logger.info("No form values found to inject into %s", path.name)
         return ApplySummary()
 
-    form_name_to_role = _build_form_name_to_role()
-    field_lookup = _build_field_lookup()
+    # Single load_forms() call builds both lookups
+    form_name_to_role, field_lookup = _build_lookup_tables()
 
     tree = ElementTree.parse(path)
     root = tree.getroot()
     details, math_constants = _ensure_ldx_targets(root)
 
+    # Extract metadata from LDX (Value.Min, Value.Max, Comment, Short Comment)
+    _extract_field_metadata(math_constants, path, session, detection_time)
+
     existing_string_ids = set(_string_entries_by_id(details))
     existing_math_names = set(_math_entries_by_name(math_constants))
+
+    # Pre-identify lookback fields so we can batch their DB queries
+    lookback_keys: set = set()
+    for fv in latest_values.values():
+        sf = field_lookup.get(f"{fv.form_name}.{fv.field_name}")
+        if sf and sf.lookback:
+            lookback_keys.add((fv.form_name, fv.field_name))
+
+    # Query last run once; batch all AuditLog lookback lookups into a single query
+    lookback_values: Dict[Tuple[str, str], Optional[str]] = {}
+    last_run = None
+    if lookback_keys:
+        last_run = session.exec(
+            select(LdxFile)
+            .where(LdxFile.processed_at < detection_time)
+            .order_by(LdxFile.processed_at.desc())
+            .limit(1)
+        ).first()
+
+        if last_run:
+            last_run_time = _ensure_utc(last_run.processed_at)
+            conditions = [
+                and_(AuditLog.form_name == fn, AuditLog.field_name == fld)
+                for fn, fld in lookback_keys
+            ]
+            all_audits = session.exec(
+                select(AuditLog)
+                .where(or_(*conditions))
+                .where(AuditLog.changed_at <= last_run_time)
+                .order_by(AuditLog.changed_at.desc())
+            ).all()
+            # First occurrence per key is the most recent (ordered DESC)
+            for audit in all_audits:
+                key = (audit.form_name, audit.field_name)
+                if key not in lookback_values:
+                    lookback_values[key] = audit.new_value
 
     by_human_field: Dict[str, List[FormValue]] = {}
     for value in latest_values.values():
@@ -478,38 +569,20 @@ def inject_values_into_ldx(
 
             inject_value = value.value
             if schema_field and schema_field.lookback:
-                last_run = session.exec(
-                    select(LdxFile)
-                    .where(LdxFile.processed_at < detection_time)
-                    .order_by(LdxFile.processed_at.desc())
-                    .limit(1)
-                ).first()
-                if not last_run:
+                lb_key = (value.form_name, value.field_name)
+                if last_run is None:
                     logger.debug(
                         "Skipping %s: lookback field with no previous run",
                         value.field_name,
                     )
                     continue
-
-                last_run_time = _ensure_utc(last_run.processed_at)
-                previous_audit = session.exec(
-                    select(AuditLog)
-                    .where(
-                        AuditLog.form_name == value.form_name,
-                        AuditLog.field_name == value.field_name,
-                        AuditLog.changed_at <= last_run_time,
-                    )
-                    .order_by(AuditLog.changed_at.desc())
-                    .limit(1)
-                ).first()
-                if previous_audit:
-                    inject_value = previous_audit.new_value or ""
-                else:
+                if lb_key not in lookback_values:
                     logger.debug(
                         "Skipping %s: no value existed at previous run",
                         value.field_name,
                     )
                     continue
+                inject_value = lookback_values[lb_key] or ""
 
             if value.field_name == "notes":
                 role = form_name_to_role.get(value.form_name, value.form_name)
