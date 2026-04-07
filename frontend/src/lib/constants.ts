@@ -8,19 +8,19 @@ export const ROLES = [
   "electronic",
   "drivetrain",
   "driver",
-  "chasis",
+  "chassis",
   "aero",
   "ergo",
   "powertrain",
 ] as const;
 
 export const CHART_COLORS = [
-  "hsl(222, 47%, 40%)",
-  "hsl(142, 50%, 40%)",
-  "hsl(0, 60%, 50%)",
-  "hsl(38, 80%, 50%)",
-  "hsl(262, 50%, 50%)",
-  "hsl(190, 60%, 40%)",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-6))",
 ];
 
 export const ROUTES = {

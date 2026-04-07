@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     <div className="mb-6 rounded-full bg-destructive/10 p-4 text-destructive">
                         <AlertCircle size={48} />
                     </div>
-                    <h1 className="mb-2 text-2xl font-bold tracking-tight">Something went wrong</h1>
+                    <h1 className="font-heading mb-2 text-2xl font-extrabold uppercase tracking-wide">Something went wrong</h1>
                     <p className="mb-8 max-w-md text-muted-foreground">
                         An unexpected error occurred in the dashboard. We&apos;ve been notified and are looking into it.
                     </p>

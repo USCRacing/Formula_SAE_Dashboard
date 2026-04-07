@@ -83,7 +83,7 @@ export const LiveChart = React.memo(function LiveChart({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px]">
+        <div className="h-[150px] sm:h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={merged}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -92,20 +92,20 @@ export const LiveChart = React.memo(function LiveChart({
                 type="number"
                 domain={domain}
                 tickFormatter={formatTime}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 13 }}
                 interval="preserveStartEnd"
               />
               <YAxis
                 domain={[min ?? "auto", max ?? "auto"]}
-                tick={{ fontSize: 11 }}
-                width={45}
+                tick={{ fontSize: 13 }}
+                width={52}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "var(--radius)",
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
                 labelFormatter={(label) => formatTime(Number(label))}
                 formatter={(value) => [

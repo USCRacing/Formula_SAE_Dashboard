@@ -15,8 +15,8 @@ type Props = {
 export function ConnectionStatus({ connected, connectionState, dataSource, reconnectAttempt }: Props) {
   if (connectionState === "failed") {
     return (
-      <Badge variant="destructive" className="gap-1">
-        <XCircle className="h-3 w-3" />
+      <Badge variant="destructive" className="gap-1.5 px-3 py-1 text-sm">
+        <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
         Connection Lost
       </Badge>
     );
@@ -24,8 +24,8 @@ export function ConnectionStatus({ connected, connectionState, dataSource, recon
 
   if (connectionState === "reconnecting") {
     return (
-      <Badge variant="secondary" className="gap-1 bg-yellow-500/20 text-yellow-700 dark:text-yellow-400">
-        <Loader2 className="h-3 w-3 animate-spin" />
+      <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-sm bg-status-warning-muted text-status-warning-text">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
         Reconnecting{reconnectAttempt ? ` (${reconnectAttempt})` : ""}...
       </Badge>
     );
@@ -33,8 +33,8 @@ export function ConnectionStatus({ connected, connectionState, dataSource, recon
 
   if (!connected) {
     return (
-      <Badge variant="secondary" className="gap-1">
-        <WifiOff className="h-3 w-3" />
+      <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-sm">
+        <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
         Disconnected
       </Badge>
     );
@@ -42,8 +42,8 @@ export function ConnectionStatus({ connected, connectionState, dataSource, recon
 
   if (dataSource === "serial") {
     return (
-      <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700">
-        <Radio className="h-3 w-3" />
+      <Badge variant="default" className="gap-1.5 px-3 py-1 text-sm bg-status-success hover:bg-status-success-hover animate-racing-glow">
+        <Radio className="h-3.5 w-3.5 animate-pulse-live" aria-hidden="true" />
         Live Modem
       </Badge>
     );
@@ -51,16 +51,16 @@ export function ConnectionStatus({ connected, connectionState, dataSource, recon
 
   if (dataSource === "udp_broadcast") {
     return (
-      <Badge variant="default" className="gap-1 bg-blue-600 hover:bg-blue-700">
-        <RadioTower className="h-3 w-3" />
+      <Badge variant="default" className="gap-1.5 px-3 py-1 text-sm bg-status-info hover:bg-status-info-hover animate-racing-glow">
+        <RadioTower className="h-3.5 w-3.5 animate-pulse-live" aria-hidden="true" />
         WiFi Broadcast
       </Badge>
     );
   }
 
   return (
-    <Badge variant="default" className="gap-1">
-      <Wifi className="h-3 w-3" />
+    <Badge variant="default" className="gap-1.5 px-3 py-1 text-sm bg-racing hover:bg-racing-hover">
+      <Wifi className="h-3.5 w-3.5" aria-hidden="true" />
       Simulated
     </Badge>
   );

@@ -10,6 +10,16 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "monospace"],
+        heading: [
+          "var(--font-heading)",
+          "var(--font-geist-sans)",
+          "system-ui",
+          "sans-serif",
+        ],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +57,26 @@ const config: Config = {
         racing: {
           DEFAULT: "hsl(var(--racing))",
           hover: "hsl(var(--racing-hover))",
+          muted: "hsl(var(--racing-muted))",
+        },
+        status: {
+          success: "hsl(var(--status-success))",
+          "success-hover": "hsl(var(--status-success-hover))",
+          "success-text": "hsl(var(--status-success-text))",
+          warning: "hsl(var(--status-warning))",
+          "warning-muted": "hsl(var(--status-warning-muted))",
+          "warning-text": "hsl(var(--status-warning-text))",
+          info: "hsl(var(--status-info))",
+          "info-hover": "hsl(var(--status-info-hover))",
+          up: "hsl(var(--status-up))",
+          down: "hsl(var(--status-down))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          muted: "hsl(var(--sidebar-muted))",
+          accent: "hsl(var(--sidebar-accent))",
+          border: "hsl(var(--sidebar-border))",
         },
       },
       borderRadius: {

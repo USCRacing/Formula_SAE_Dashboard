@@ -24,7 +24,7 @@ export const GaugeChart = React.memo(function GaugeChart({
   value,
   min,
   max,
-  color = "hsl(222, 47%, 40%)",
+  color = "hsl(var(--racing))",
 }: Props) {
   const displayValue = value ?? 0;
   const range = max - min || 1;
@@ -44,8 +44,8 @@ export const GaugeChart = React.memo(function GaugeChart({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px] flex flex-col items-center justify-center">
-          <ResponsiveContainer width="100%" height={150}>
+        <div className="h-[150px] sm:h-[200px] flex flex-col items-center justify-center">
+          <ResponsiveContainer width="100%" height="100%">
             <RadialBarChart
               cx="50%"
               cy="100%"
@@ -71,7 +71,7 @@ export const GaugeChart = React.memo(function GaugeChart({
             </RadialBarChart>
           </ResponsiveContainer>
           <div className="text-center -mt-8">
-            <p className="text-3xl font-bold tabular-nums">
+            <p className="font-heading text-3xl font-bold tabular-nums">
               {value !== null ? displayValue.toFixed(1) : "--"}
             </p>
             <p className="text-xs text-muted-foreground">

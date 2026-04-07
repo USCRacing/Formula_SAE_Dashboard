@@ -5,6 +5,7 @@ type EmptyStateProps = {
   title: string;
   description?: string;
   className?: string;
+  headingLevel?: "h2" | "h3" | "h4";
 };
 
 export function EmptyState({
@@ -12,6 +13,7 @@ export function EmptyState({
   title,
   description,
   className,
+  headingLevel: Tag = "h3",
 }: EmptyStateProps) {
   return (
     <div
@@ -21,9 +23,9 @@ export function EmptyState({
       )}
     >
       {icon && (
-        <div className="mb-4 text-muted-foreground">{icon}</div>
+        <div className="mb-4 text-racing/30">{icon}</div>
       )}
-      <h3 className="text-lg font-medium">{title}</h3>
+      <Tag className="font-heading text-lg font-bold uppercase tracking-wide">{title}</Tag>
       {description && (
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       )}

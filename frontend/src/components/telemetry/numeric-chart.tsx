@@ -41,16 +41,16 @@ export const NumericChart = React.memo(function NumericChart({ title, unit, data
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px] flex flex-col items-center justify-center">
+        <div className="h-[150px] sm:h-[200px] flex flex-col items-center justify-center">
           <div className="flex items-center gap-3">
-            <p className="text-5xl font-bold tabular-nums">
+            <p className="font-heading text-5xl font-bold tabular-nums">
               {current !== null ? current.toFixed(1) : "--"}
             </p>
             {trend === "up" && (
-              <TrendingUp className="h-8 w-8 text-green-500" />
+              <TrendingUp className="h-8 w-8 text-status-up" />
             )}
             {trend === "down" && (
-              <TrendingDown className="h-8 w-8 text-red-500" />
+              <TrendingDown className="h-8 w-8 text-status-down" />
             )}
             {trend === "flat" && (
               <Minus className="h-8 w-8 text-muted-foreground" />

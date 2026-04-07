@@ -9,7 +9,7 @@ type Props = {
 export function LoadingSpinner({ className, label }: Props) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3 p-8", className)}>
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <Loader2 className="h-8 w-8 animate-spin text-racing" />
       {label && (
         <p className="text-sm text-muted-foreground">{label}</p>
       )}
