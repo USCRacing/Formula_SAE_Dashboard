@@ -8,7 +8,7 @@ export const ROLES = [
   "electronic",
   "drivetrain",
   "driver",
-  "chassis",
+  "chasis",
   "aero",
   "ergo",
   "powertrain",

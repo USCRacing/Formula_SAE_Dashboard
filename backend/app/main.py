@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, field_validator
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, delete, func, select
 
 from .auth import (
@@ -305,7 +306,9 @@ def me(current_user: User = Depends(get_current_user)) -> UserView:
 @app.get("/admin/users", response_model=List[UserView])
 def list_users(_: User = Depends(require_admin)) -> List[UserView]:
     with Session(engine) as session:
-        users = session.exec(select(User)).all()
+        users = session.exec(
+            select(User).options(selectinload(User.roles))
+        ).all()
         return [_user_to_view(user) for user in users]
 
 
