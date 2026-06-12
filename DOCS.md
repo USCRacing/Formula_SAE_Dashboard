@@ -1,10 +1,15 @@
 # Formula SAE Dashboard — Documentation
 
-Full reference for setup, deployment, configuration, and operations. For a
-high-level overview, see the [README](README.md).
+Formula SAE Dashboard gives subteams their own role-scoped forms, keeps a full
+audit trail of every update, injects the latest configuration values into MoTeC
+`.ldx` files, and streams live telemetry into a browser dashboard. It runs as a
+FastAPI backend and a Next.js frontend, with SQLite for persistence.
 
 ## Contents
 
+- [Capabilities](#capabilities)
+- [Stack](#stack)
+- [Quick Start](#quick-start)
 - [System Overview](#system-overview)
 - [Roles](#roles)
 - [Local Development](#local-development)
@@ -16,6 +21,42 @@ high-level overview, see the [README](README.md).
 - [Telemetry Operations](#telemetry-operations)
 - [Troubleshooting](#troubleshooting)
 - [Repository Layout](#repository-layout)
+
+## Capabilities
+
+- Role-based access for admin and subteam users, with up to two roles each
+- YAML-driven forms that prefill current values and log every field change
+- Automatic LDX injection into new `.ldx` files, with a recorded audit of
+  exactly what was written and where
+- Self-healing LDX that re-checks tracked files and restores injected values
+  removed by a later MoTeC rewrite
+- Live telemetry dashboard with line, gauge, and numeric widgets
+- Flexible telemetry inputs across simulated, serial modem, and UDP broadcast
+  sources, switchable from the admin UI
+- Admin control center for users, sensors, telemetry config, audit history, and
+  LDX file management
+
+## Stack
+
+| Layer | Tech |
+| --- | --- |
+| Backend | FastAPI, SQLModel, SQLite, WebSockets |
+| Frontend | Next.js 14 App Router, React 18, Tailwind CSS, shadcn/ui, SWR, Recharts |
+| Deployment | Docker Compose |
+| Telemetry | Simulated generator, Digi Bee SX serial bridge, passive UDP listener |
+
+## Quick Start
+
+With Docker:
+
+```bash
+cp .env.example .env          # set ADMIN_*, JWT_SECRET, NEXT_PUBLIC_API_URL
+mkdir -p ldx
+docker compose up --build -d
+```
+
+Then open the dashboard at `http://localhost:3000`. To run the backend and
+frontend directly, see [Local Development](#local-development).
 
 ## System Overview
 
